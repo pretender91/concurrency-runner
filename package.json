@@ -4,6 +4,7 @@
   "description": "Concurrency task runner",
   "main": "src/index.js",
   "type": "module",
+  "homepage": "https://github.com/pretender91/concurrency-runner",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
