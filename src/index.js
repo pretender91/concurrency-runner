@@ -1,4 +1,4 @@
-export { delay, abort } from './internal/effects/js';
+export { delay, abort } from './internal/effects.js';
 export {
   default as TaskScheduler
 } from './internal/task-sheduler.js';
