@@ -39,13 +39,12 @@ setTimeout(() => {
   const taskRunner1 = taskScheduler.execute(
     createTask('kek')
   ); //taskRunner1 will be started, taskRunner0 will be concelled in favor of task 1
-}, 500);
-
-taskRunner0.on('resolve', results => {
-  results.forEach(result => {
-    document.body.append();
+  taskRunner1.on('resolve', results => {
+    results.forEach(result => {
+      document.body.append();
+    });
   });
-});
+}, 500);
 ```
 
 There are several strategies:
