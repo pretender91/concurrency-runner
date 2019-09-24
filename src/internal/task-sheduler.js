@@ -25,7 +25,7 @@ DefaultTaskScheduler.prototype.execute = function(
 DefaultTaskScheduler.prototype.cancelAll = function(
   reason
 ) {
-  this.runners.forEech(runner => runner.cancel(reason));
+  this.runners.forEach(runner => runner.cancel(reason));
   this.runners = [];
 };
 
