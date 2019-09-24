@@ -1,14 +1,10 @@
-import TaskRunner from './task-runner.js';
-
 function DefaultTaskScheduler() {
   this.runners = [];
 }
 
 DefaultTaskScheduler.prototype.execute = function(
-  generator
+  taskRunner
 ) {
-  const taskRunner = new TaskRunner(generator);
-
   const removeRunner = runnerToRemove => {
     this.runners = this.runners.filter(
       runner => runner !== runnerToRemove
@@ -26,18 +22,23 @@ DefaultTaskScheduler.prototype.execute = function(
   return taskRunner;
 };
 
+DefaultTaskScheduler.prototype.cancelAll = function(
+  reason
+) {
+  this.runners.forEech(runner => runner.cancel(reason));
+  this.runners = [];
+};
+
 function RestartableTaskScheduler() {
   this.activeTaskRunner = undefined;
 }
 
 RestartableTaskScheduler.prototype.execute = function(
-  generator
+  taskRunner
 ) {
   if (this.activeTaskRunner) {
     this.activeTaskRunner.cancel('Cancelled by scheduler');
   }
-
-  const taskRunner = new TaskRunner(generator);
 
   this.activeTaskRunner = taskRunner;
 
@@ -46,22 +47,29 @@ RestartableTaskScheduler.prototype.execute = function(
   return taskRunner;
 };
 
+RestartableTaskScheduler.prototype.cancelAll = function(
+  reason
+) {
+  if (this.activeTaskRunner) {
+    this.activeTaskRunner.cancel(reason);
+  }
+};
+
 function EnqueueTaskScheduler() {
   this.activeTaskRunner = undefined;
   this.queuedTaskRunners = [];
 }
 
 EnqueueTaskScheduler.prototype.execute = function(
-  generator
+  taskRunner
 ) {
   if (this.activeTaskRunner) {
-    const taskRunner = new TaskRunner(generator);
     this.queuedTaskRunners.push(taskRunner);
     return taskRunner;
   }
 
-  const runTaskRunner = taskRunner => {
-    if (!taskRunner) {
+  const runTaskRunner = taskRunnerToRun => {
+    if (!taskRunnerToRun) {
       return undefined;
     }
 
@@ -71,34 +79,45 @@ EnqueueTaskScheduler.prototype.execute = function(
       runTaskRunner(nextTaskRunner);
     };
 
-    taskRunner.on('resolve', runQueuedTaskRunner);
-    taskRunner.on('cancel', runQueuedTaskRunner);
-    taskRunner.on('reject', runQueuedTaskRunner);
+    taskRunnerToRun.on('resolve', runQueuedTaskRunner);
+    taskRunnerToRun.on('cancel', runQueuedTaskRunner);
+    taskRunnerToRun.on('reject', runQueuedTaskRunner);
 
-    this.activeTaskRunner = taskRunner;
+    this.activeTaskRunner = taskRunnerToRun;
 
-    taskRunner.execute();
+    taskRunnerToRun.execute();
 
-    return taskRunner;
+    return taskRunnerToRun;
   };
 
-  return runTaskRunner(new TaskRunner(generator));
+  return runTaskRunner(taskRunner);
+};
+
+EnqueueTaskScheduler.prototype.cancelAll = function(
+  reason
+) {
+  if (this.activeTaskRunner) {
+    this.activeTaskRunner.cancel(reason);
+  }
+
+  this.queuedTaskRunners.forEach(taskRunner =>
+    taskRunner.cancel(reason)
+  );
+
+  this.queuedTaskRunners = [];
 };
 
 function DropTaskScheduler() {
   this.activeTaskRunner = undefined;
 }
 
-DropTaskScheduler.prototype.execute = function(generator) {
+DropTaskScheduler.prototype.execute = function(taskRunner) {
   if (this.activeTaskRunner) {
-    const taskRunner = new TaskRunner(generator);
     taskRunner.cancel(
       'Cancelled by scheduler cause dropping strategy'
     );
     return taskRunner;
   }
-
-  const taskRunner = new TaskRunner(generator);
 
   const freeActiveTaskRunner = () => {
     this.activeTaskRunner = undefined;
@@ -115,13 +134,19 @@ DropTaskScheduler.prototype.execute = function(generator) {
   return taskRunner;
 };
 
+DropTaskScheduler.prototype.cancelAll = function(reason) {
+  if (this.activeTaskRunner) {
+    this.activeTaskRunner.cancel(reason);
+  }
+};
+
 function KeepLatestTaskScheduler() {
   this.activeTaskRunner = undefined;
   this.queuedTaskRunner = undefined;
 }
 
 KeepLatestTaskScheduler.prototype.execute = function(
-  generator
+  taskRunner
 ) {
   if (this.activeTaskRunner) {
     if (this.queuedTaskRunner) {
@@ -129,13 +154,12 @@ KeepLatestTaskScheduler.prototype.execute = function(
         'Cancelled by scheduler'
       );
     }
-    const taskRunner = new TaskRunner(generator);
     this.queuedTaskRunner = taskRunner;
     return taskRunner;
   }
 
-  const runTaskRunner = taskRunner => {
-    if (!taskRunner) {
+  const runTaskRunner = taskRunnerToRun => {
+    if (!taskRunnerToRun) {
       return undefined;
     }
 
@@ -146,18 +170,31 @@ KeepLatestTaskScheduler.prototype.execute = function(
       runTaskRunner(nextTaskRunner);
     };
 
-    taskRunner.on('resolve', runQueuedTaskRunner);
-    taskRunner.on('cancel', runQueuedTaskRunner);
-    taskRunner.on('reject', runQueuedTaskRunner);
+    taskRunnerToRun.on('resolve', runQueuedTaskRunner);
+    taskRunnerToRun.on('cancel', runQueuedTaskRunner);
+    taskRunnerToRun.on('reject', runQueuedTaskRunner);
 
-    this.activeTaskRunner = taskRunner;
+    this.activeTaskRunner = taskRunnerToRun;
 
-    taskRunner.execute();
+    taskRunnerToRun.execute();
 
-    return taskRunner;
+    return taskRunnerToRun;
   };
 
-  return runTaskRunner(new TaskRunner(generator));
+  return runTaskRunner(taskRunner);
+};
+
+KeepLatestTaskScheduler.prototype.cancelAll = function(
+  reason
+) {
+  if (this.activeTaskRunner) {
+    this.activeTaskRunner.cancel(reason);
+  }
+
+  this.queuedTaskRunner.forEach(taskRunner =>
+    taskRunner.cancel()
+  );
+  this.queuedTaskRunner = [];
 };
 
 function TaskScheduler(
