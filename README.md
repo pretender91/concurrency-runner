@@ -15,7 +15,7 @@ import {
   TaskScheduler,
   STRATEGIES,
   Task,
-  deley
+  delay
 } from 'concurrency-runner';
 
 const taskScheduler = new TaskScheduler(
